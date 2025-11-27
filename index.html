@@ -14,6 +14,26 @@
 
     <div id="myDiv" style="width: 100%; max-width: 1000px; height: 600px; margin: 0 auto;"></div>
     <div id="missingMarkers" style="margin-top: 16px; font-family: sans-serif"></div>
+
+    <!-- Cuadros informativos por país (ocultos por defecto). Se muestran cuando el país está seleccionado/missing -->
+    <div id="countryBoxes" style="display:flex; gap:12px; justify-content:center; align-items:flex-start; margin-top:12px; flex-wrap:wrap;">
+      <div id="box-Albania" class="country-box" style="display:none; width:350px; min-height:140px; border:1px solid #ccc; padding:10px; box-sizing:border-box; font-family: sans-serif;">
+        <strong>Albania</strong>
+        <p style="margin:8px 0 0 0;"><strong>Un caso de eficiencia sorprendente:</strong> Albania logra una esperanza de vida alta con uno de los gastos públicos más bajos de Europa. Su sistema sanitario opera al límite, pero rinde más de lo esperado. Es el ejemplo clásico de “mucho con poco”.</p>
+      </div>
+      <div id="box-Chile" class="country-box" style="display:none; width:350px; min-height:140px; border:1px solid #ccc; padding:10px; box-sizing:border-box; font-family: sans-serif;">
+        <strong>Chile</strong>
+        <p style="margin:8px 0 0 0;"><strong>Indicadores de país desarrollado, financiamiento de país intermedio:</strong> Chile exhibe una esperanza de vida alta a nivel global, pero su gasto público en salud queda muy por debajo del promedio OCDE. Esto refleja un sistema mixto tensionado, con buenos resultados poblacionales pero fuertes brechas de equidad.</p>
+      </div>
+      <div id="box-United States" class="country-box" style="display:none; width:350px; min-height:140px; border:1px solid #ccc; padding:10px; box-sizing:border-box; font-family: sans-serif;">
+        <strong>Estados Unidos</strong>
+        <p style="margin:8px 0 0 0;"><strong>La gran paradoja mundial de la salud:</strong> EE.UU. tiene el mayor gasto sanitario del planeta, pero una esperanza de vida comparativamente baja. Es el ejemplo más citado de ineficiencia: inversión altísima, resultados inconsistentes y profundas desigualdades.</p>
+      </div>
+      <div id="box-Nauru" class="country-box" style="display:none; width:350px; min-height:140px; border:1px solid #ccc; padding:10px; box-sizing:border-box; font-family: sans-serif;">
+        <strong>Nauru</strong>
+        <p style="margin:8px 0 0 0;"><strong>Una crisis de salud a escala nacional:</strong> Nauru enfrenta una de las cargas más altas de obesidad y diabetes del mundo, lo que deprime su esperanza de vida pese a un gasto público elevado para su tamaño. Su realidad sanitaria está marcada por dependencia alimentaria, enfermedades crónicas y vulnerabilidad estructural.</p>
+      </div>
+    </div>
   </body>
   <script>
     // Carga los datos y crea un gráfico de barras simple.
@@ -47,8 +67,8 @@
 
         const layout = {
           title: 'Gasto público per cápita vs Esperanza de Vida por País',
-          xaxis: { title: 'País (ordenado por esperanza de vida)', automargin: true, tickangle: -45, showticklabels: false },
-          yaxis: { title: 'PublicHealthSpendingPerCapita' },
+          xaxis: { title: 'Países ordenados por esperanza de vida', automargin: true, tickangle: -45, showticklabels: false },
+          yaxis: { title: 'Gasto Público en Salud per Cápita (USD)' },
           annotations: []
         };
 
@@ -93,6 +113,11 @@
           const annotations = missingCountries.map(c => {
             const idx = countries.indexOf(c);
             const yVal = idx >= 0 ? spending[idx] : 0;
+            // Ajustar longitud de la flecha hacia arriba: por defecto más larga,
+            // excepto Estados Unidos que se mantiene corta; Chile se alarga bastante.
+            let ayVal = -80; // valor por defecto (flecha más larga)
+            if (c === 'United States') ayVal = -40; // no alargar
+            if (c === 'Chile') ayVal = -165; // alargar bastante para Chile
             return {
               x: c,
               y: yVal,
@@ -103,13 +128,21 @@
               arrowhead: 3,
               arrowcolor: highlightColor,
               font: { color: highlightColor },
-              ay: -40,
+              ay: ayVal,
               ax: 0,
               yanchor: 'bottom'
             };
           });
 
           Plotly.relayout('myDiv', {annotations: annotations});
+          // Mostrar los cuadros correspondientes justo debajo del gráfico
+          const allBoxes = ['Albania','Chile','United States','Nauru'];
+          allBoxes.forEach(name => {
+            const el = document.getElementById('box-' + name);
+            if (!el) return;
+            if (missingCountries.includes(name)) el.style.display = 'block';
+            else el.style.display = 'none';
+          });
         }
 
         // Escucha los datos recibidos desde Protobject y resalta países que están "missing"

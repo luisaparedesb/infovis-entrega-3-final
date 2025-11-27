@@ -1,3 +1,4 @@
+// Generador de sonidos de monitor cardíaco
 class HeartbeatGenerator {
     constructor() {
         this.audioContext = null;
