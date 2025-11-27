@@ -12,81 +12,128 @@
     <script src="https://app.protobject.com/framework/p.js"></script>
     <script src="config.js"></script>
 
-    <div id="myDiv" style="width: 800px"></div>
+    <div id="myDiv" style="width: 100%; max-width: 1000px; height: 600px; margin: 0 auto;"></div>
     <div id="missingMarkers" style="margin-top: 16px; font-family: sans-serif"></div>
   </body>
   <script>
-    var trace = [];
+    // Carga los datos y crea un gráfico de barras simple.
+    fetch('data.json')
+      .then((r) => r.json())
+      .then((data) => {
+        // Filtra entradas válidas y copia para no mutar
+        const rows = data.filter(d => d.LifeExpectancy != null && d.PublicHealthSpendingPerCapita != null).slice();
 
-    // Define los países y productos que se van a visualizar
-    var countries = ["Italia", "Francia", "Alemania"];
-    var productos = ["Porotos", "Té", "Atún"];
+        // Ordenar por esperanza de vida de menos a más (ascendente)
+        rows.sort((a,b) => a.LifeExpectancy - b.LifeExpectancy);
 
-    // Define la primera traza para "Porotos"
-    trace[1] = {
-      // 1 es el marcador Aruco de los porotos
-      x: countries, // Eje X: países
-      y: [20, 14, 23], // Eje Y: cantidades exportadas
-      marker: { color: "#8B4513" }, // Color del marcador
-      name: productos[0], // Nombre del producto
-      width: 0.5, // Ancho de las barras
-      type: "bar", // Tipo de gráfico
-    };
+        // Construir arrays
+        const countries = rows.map(r => r.Country);
+        const lifeExp = rows.map(r => r.LifeExpectancy);
+        const spending = rows.map(r => r.PublicHealthSpendingPerCapita);
 
-    // Define la segunda traza para "Té"
-    trace[100] = {
-      // 100 es el marcador Aruco del té
-      x: countries,
-      y: [12, 18, 29],
-      width: [0.8, 0.8, 0.8], // Ancho de las barras (puede ser redundante)
-      marker: { color: "#556B2F" },
-      name: productos[1],
-      width: 0.5,
-      type: "bar",
-    };
+        // Colores por defecto
+        const defaultColor = '#4682B4';
+        const highlightColor = '#FF4136';
+        let colors = countries.map(() => defaultColor);
 
-    // Define la tercera traza para "Atún"
-    trace[200] = {
-      // 100 es el marcador Aruco del Atun
-      x: countries,
-      y: [14, 13, 18],
-      width: [0.8, 0.8, 0.8],
-      marker: { color: "#4682B4" },
-      name: productos[2],
-      width: 0.5,
-      type: "bar",
-    };
+        const trace = {
+          x: countries,
+          y: spending,
+          type: 'bar',
+          marker: { color: colors },
+          hovertemplate: '%{x}<br>LifeExp: %{customdata[0]}<br>Spending: %{y}<extra></extra>',
+          customdata: lifeExp.map(v => [v])
+        };
 
-    // Define el layout del gráfico
-    var layout = {
-      barmode: "stack", // Modo de apilamiento de las barras
-      title: "Exportación de productos por país en toneladas", // Título del gráfico
-    };
+        const layout = {
+          title: 'Gasto público per cápita vs Esperanza de Vida por País',
+          xaxis: { title: 'País (ordenado por esperanza de vida)', automargin: true, tickangle: -45, showticklabels: false },
+          yaxis: { title: 'PublicHealthSpendingPerCapita' },
+          annotations: []
+        };
 
-    // Inicializa el gráfico con el conjunto de datos
-    var dataset = [trace[1], trace[100], trace[200]];
-    Plotly.newPlot("myDiv", dataset, layout); // Dibuja el gráfico en el div con id 'myDiv'
+        Plotly.newPlot('myDiv', [trace], layout, {responsive: true});
 
-    // Escucha los datos recibidos desde Protobject
-    Protobject.Core.onReceived((payload) => {
-      const detectedOrder = Array.isArray(payload)
-        ? payload
-        : payload?.detected || [];
-      const missingMarkers = Array.isArray(payload) ? [] : payload?.missing || [];
+        // Función auxiliar para encontrar country por valor de marker
+        // TEMPORAL: testMarkerMap permite mapear marcadores de prueba a países.
+        const testMarkerMap = {
+          '100': 'Chile',
+          '200': 'Nauru',
+          '300': 'Albania',
+          '400': 'United States'
+        };
 
-      const dataset = detectedOrder
-        .map((markerId) => trace[markerId])
-        .filter(Boolean);
-      Plotly.newPlot("myDiv", dataset, layout);
+        function findCountryForMarker(marker) {
+          const m = String(marker).trim();
+          // 0) Mapeo temporal de prueba (remover después)
+          if (testMarkerMap[m]) return testMarkerMap[m];
+          // 1) Buscar por CODE (código ISO)
+          const byCode = rows.find(r => String(r.CODE).toUpperCase() === m.toUpperCase());
+          if (byCode) return byCode.Country;
+          // 2) Buscar por nombre de país exacto (case-insensitive)
+          const byName = rows.find(r => String(r.Country).toLowerCase() === m.toLowerCase());
+          if (byName) return byName.Country;
+          // 3) si marker es un número, intentar usar como índice (1-based)
+          const n = Number(m);
+          if (!Number.isNaN(n) && n > 0 && Number.isInteger(n) && n <= rows.length) {
+            return rows[n-1].Country;
+          }
+          return null;
+        }
 
-      const missingInfo = document.getElementById("missingMarkers");
-      if (missingMarkers.length === 0) {
-        missingInfo.textContent = "Todos los marcadores están siendo detectados.";
-      } else {
-        missingInfo.textContent = `Marcadores no detectados: ${missingMarkers.join(
-          ", "
-        )}`;
-      }
-    });
+        // Manejo centralizado de 'missing' para poder invocarlo desde pruebas.
+        function handleMissing(missing) {
+          const missingCountries = (missing || []).map(findCountryForMarker).filter(Boolean);
+
+          // Actualiza colores: resaltar los países que faltan (missing)
+          colors = countries.map(c => missingCountries.includes(c) ? highlightColor : defaultColor);
+          Plotly.restyle('myDiv', {'marker.color': [colors]});
+
+          // Crear anotaciones (flechas) apuntando a la cima de la barra (valor de spending)
+          const annotations = missingCountries.map(c => {
+            const idx = countries.indexOf(c);
+            const yVal = idx >= 0 ? spending[idx] : 0;
+            return {
+              x: c,
+              y: yVal,
+              xref: 'x',
+              yref: 'y',
+              text: c,
+              showarrow: true,
+              arrowhead: 3,
+              arrowcolor: highlightColor,
+              font: { color: highlightColor },
+              ay: -40,
+              ax: 0,
+              yanchor: 'bottom'
+            };
+          });
+
+          Plotly.relayout('myDiv', {annotations: annotations});
+        }
+
+        // Escucha los datos recibidos desde Protobject y resalta países que están "missing"
+        Protobject.Core.onReceived((payload) => {
+          const missing = Array.isArray(payload) ? [] : payload?.missing || [];
+          handleMissing(missing);
+        });
+
+        // --- TEMPORAL: botones simples para probar cada marker (remover después) ---
+        const testDiv = document.createElement('div');
+        testDiv.style.marginTop = '8px';
+        testDiv.innerHTML = '<strong>Pruebas temporales:</strong> ';
+        ['100','200','300','400'].forEach(code => {
+          const btn = document.createElement('button');
+          btn.textContent = code;
+          btn.style.marginLeft = '6px';
+          btn.onclick = () => handleMissing([code]);
+          testDiv.appendChild(btn);
+        });
+        document.body.appendChild(testDiv);
+        // ---------------------------------------------------------------------------
+      })
+      .catch((err) => {
+        console.error('Error cargando data.json', err);
+      });
   </script>
 </html>
