@@ -37,47 +37,85 @@ const AudioManager = (function() {
 
     function playCoinsSound(spending, maxSpending, countryName = '') {
         stopCoinsSound();
-        console.log(`AudioManager: Reproduciendo monedas para gasto: ${spending} (max ${maxSpending})`);
+
+        console.log(`💰 Reproduciendo monedas para gasto: $${spending} (máximo: $${maxSpending})`);
+
         isPlayingCoins = true;
 
+        // Sistema de rangos muy sensible para diferentes niveles de gasto
         let interval, volume, repetitions;
-        volume = 0.8;
 
+        // Volumen fijo para todos los casos
+        volume = 0.8; // Volumen constante para todas las monedas
+
+        // Caso especial para Estados Unidos - rápido pero distinguible
         if (countryName === 'United States' || countryName === 'United States of America') {
-            interval = 300; repetitions = 2;
+            console.log('🇺🇸 Estados Unidos - sonido rápido pero distinguible');
+            interval = 300; // 300ms - rápido pero distinguible
+            repetitions = 2; // sonidos superpuestos para efecto de "lluvia de monedas"
         } else if (spending >= 8000) {
-            interval = 300; repetitions = 3;
+            // Gasto muy alto (8000+): Rápido pero distinguible
+            console.log('💎 Gasto muy alto - sonido rápido distinguible');
+            interval = 300; // 300ms - rápido pero distinguible
+            repetitions = 3; // 3 sonidos superpuestos
         } else if (spending >= 5000) {
-            interval = 400; repetitions = 2;
+            // Gasto alto (5000-8000): Moderado rápido
+            console.log('💍 Gasto alto - sonido moderado rápido');
+            interval = 400; // 400ms - moderado rápido
+            repetitions = 2; // 2 sonidos superpuestos
         } else if (spending >= 3000) {
-            interval = 500; repetitions = 1;
+            // Gasto medio-alto (3000-5000): Moderado
+            console.log('💰 Gasto medio-alto - sonido moderado');
+            interval = 500; // 500ms - moderado
+            repetitions = 1;
         } else if (spending >= 2000) {
-            interval = 700; repetitions = 1;
+            // Gasto medio (2000-3000): Moderado lento
+            console.log('🪙 Gasto medio - sonido moderado lento');
+            interval = 700; // 700ms - moderado lento
+            repetitions = 1;
         } else if (spending >= 1000) {
-            interval = 1000; repetitions = 1;
+            // Gasto medio-bajo (1000-2000): Lento
+            console.log('🪙 Gasto medio-bajo - sonido lento');
+            interval = 1000; // 1000ms - lento
+            repetitions = 1;
         } else if (spending >= 500) {
-            interval = 1500; repetitions = 1;
+            // Gasto bajo (500-1000): Muy lento
+            console.log('🪙 Gasto bajo - sonido muy lento');
+            interval = 1500; // 1500ms - muy lento
+            repetitions = 1;
         } else if (spending >= 100) {
-            interval = 2500; repetitions = 1;
+            // Gasto muy bajo (100-500): Extremadamente lento
+            console.log('🪙 Gasto muy bajo - sonido extremadamente lento');
+            interval = 2500; // 2500ms - extremadamente lento
+            repetitions = 1;
         } else {
-            interval = 4000; repetitions = 1;
+            // Gasto mínimo (<100): Casi silencio
+            console.log('🪙 Gasto mínimo - casi silencio');
+            interval = 4000; // 4000ms - casi silencio
+            repetitions = 1;
         }
 
+        // Función para reproducir sonidos superpuestos
         const playSound = () => {
             for (let i = 0; i < repetitions; i++) {
                 setTimeout(() => {
+                    // Crear una nueva instancia de audio para cada repetición
                     const audioInstance = new Audio('coins.wav');
                     audioInstance.currentTime = 0;
-                    audioInstance.volume = volume;
-                    audioInstance.play().catch(e => console.log('Error playing coins (AudioManager):', e));
-                }, i * 50);
+                    audioInstance.volume = volume; // Volumen constante
+                    audioInstance.play().catch(e => console.log('Error playing coins:', e));
+                }, i * 50); // Espaciar los sonidos 50ms
             }
         };
 
+        // Reproducir inmediatamente
         playSound();
 
+        // Continuar reproduciendo en intervalos
         coinsInterval = setInterval(() => {
-            if (isPlayingCoins) playSound();
+            if (isPlayingCoins) {
+                playSound();
+            }
         }, interval);
     }
 

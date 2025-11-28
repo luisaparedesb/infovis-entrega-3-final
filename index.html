@@ -11,6 +11,8 @@
     <script src="https://cdn.plot.ly/plotly-2.34.0.min.js"></script>
     <script src="https://app.protobject.com/framework/p.js"></script>
     <script src="config.js"></script>
+    <script src="heartbeat.js"></script>
+    <script src="audio.js"></script>
 
     <div id="myDiv" style="width: 100%; max-width: 1000px; height: 600px; margin: 0 auto;"></div>
     <div id="missingMarkers" style="margin-top: 16px; font-family: sans-serif"></div>
@@ -142,7 +144,22 @@
             if (!el) return;
             if (missingCountries.includes(name)) el.style.display = 'block';
             else el.style.display = 'none';
+            // reset border style
+            el.style.borderColor = '#ccc';
           });
+
+          // Selección automática para audio: tomar hasta dos países de 'missing'
+          // Reemplaza cualquier selección previa (deselecciona automáticamente)
+          selectedCountries.length = 0;
+          const toSelect = missingCountries.slice(0,2);
+          toSelect.forEach((name, i) => {
+            selectedCountries.push(name);
+            const el = document.getElementById('box-' + name);
+            if (el) el.style.borderColor = '#FF4136';
+          });
+
+          // Actualizar audio según la selección automática
+          updateAudioForSelection();
         }
 
         // Escucha los datos recibidos desde Protobject y resalta países que están "missing"
@@ -164,6 +181,52 @@
         });
         document.body.appendChild(testDiv);
         // ---------------------------------------------------------------------------
+
+        // Audio de selección: permitir seleccionar hasta dos países haciendo click en sus cuadros
+        // y reproducir sonidos. Implementación simple: coins.wav paneado a izquierda/derecha.
+        window._sharedAudioCtx = null;
+        window._pannedPlayers = [];
+        const selectedCountries = [];
+
+        function ensureAudioContext() {
+          if (!window._sharedAudioCtx) {
+            window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          return window._sharedAudioCtx;
+        }
+
+        function stopPannedPlayers() {
+          try {
+            window._pannedPlayers.forEach(obj => {
+              try { obj.el.pause(); obj.el.src = ''; } catch (e) {}
+              try { if (obj.source) obj.source.disconnect(); } catch (e) {}
+              try { if (obj.panner) obj.panner.disconnect(); } catch (e) {}
+            });
+          } catch (e) {}
+          window._pannedPlayers = [];
+        }
+
+        function updateAudioForSelection() {
+          // Detener todo audio previo
+          AudioManager.stopAllSounds();
+          stopPannedPlayers();
+
+          // Reproducir coins.wav usando la lógica centralizada en AudioManager
+          // (usar solo la primera selección para mantenerlo simple)
+          const first = selectedCountries[0];
+          if (first) {
+            const row = rows.find(r => r.Country === first);
+            if (row) {
+              const maxSpending = Math.max(...spending);
+              AudioManager.playCoinsSound(row.PublicHealthSpendingPerCapita, maxSpending, row.Country);
+              // Reproducir heartbeat con heartbeat.js para la primera seleccionada
+              AudioManager.playBeepSound(row.LifeExpectancy, null, null);
+            }
+          }
+        }
+
+        // Selección manual eliminada: la selección de audio se hace automáticamente
+        // a partir de los marcadores 'missing' recibidos.
       })
       .catch((err) => {
         console.error('Error cargando data.json', err);

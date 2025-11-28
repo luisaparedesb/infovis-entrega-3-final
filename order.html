@@ -9,6 +9,8 @@
   <body>
     <script src="https://app.protobject.com/framework/p.js"></script>
     <script src="config.js"></script>
+    <video id="cameraPreview" autoplay playsinline style="width: 640px; height: 360px; border: 1px solid #ccc; display: block; margin-top: 8px;"></video>
+    <div id="detectedMarkers" style="margin-top:8px; font-family: sans-serif;"></div>
     <script>
       // Primero solicitar permisos de cámara explícitamente
       navigator.mediaDevices.getUserMedia({ 
@@ -20,6 +22,9 @@
       })
       .then(function(stream) {
         cameraStream = stream;
+        // Conecta el stream al elemento <video> para vista previa
+        const vid = document.getElementById('cameraPreview');
+        if (vid) vid.srcObject = stream;
         updateStatus('Permiso de cámara otorgado');
       });
 
@@ -49,6 +54,12 @@
 
         // Crea un nuevo array que contiene solo los IDs de los marcadores en el orden determinado
         let orderPosition = markers.map(marker => marker.id);
+
+        // Actualiza la vista con los marcadores detectados
+        const detectedDiv = document.getElementById('detectedMarkers');
+        if (detectedDiv) {
+          detectedDiv.textContent = 'Detectados: ' + (orderPosition.length ? orderPosition.join(', ') : 'Ninguno');
+        }
 
         // Identifica los marcadores que dejaron de detectarse
         const missingMarkers = markerIds.filter((id) => !data[id]);
